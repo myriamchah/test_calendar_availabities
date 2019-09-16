@@ -1,10 +1,16 @@
 class Event < ActiveRecord::Base
+
+  before_create :duration_valid?
+
+  validates :kind, :starts_at, :ends_at, presence: true
+  validates :kind, inclusion: { in: %w(opening appointment) }
+
   def self.availabilities(date)
-    arr = [{ date: date, slots: [] }]
+    arr = [{ date: date, slots: openings_at(date) - appointments_at(date) }]
     i = 0
     6.times do
       i += 1
-      arr << { date: date.next_day(i), slots: openings_at(date.next_day(i)) - appointments_at(date.next_day(i))}
+      arr << { date: date.next_day(i), slots: openings_at(date.next_day(i)) - appointments_at(date.next_day(i)) }
     end
     arr
   end
@@ -20,10 +26,9 @@ class Event < ActiveRecord::Base
 #I assume that all starts_at and ends_at occur on the same day
   def self.openings_at(date)
     recurring = Event.where(weekly_recurring: true).select { |d| d.opening? && (d.starts_at.wday == date.wday) }
-    one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select { |e| e.opening? }
+    one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select{ |d| d.opening? && (d.starts_at.wday == date.wday) }
     total = recurring + one_shot
     slots = []
-    if !total.empty?
       total.uniq.each do |d|
         current_slot = d.starts_at
         until current_slot == d.ends_at
@@ -31,29 +36,33 @@ class Event < ActiveRecord::Base
           current_slot += 30.minutes
         end
       end
-    else
-      slots << 'No availabilities found'
-    end
     slots
   end
 
 #I assume that all starts_at and ends_at occur on the same day
   def self.appointments_at(date)
-    recurring = Event.where(weekly_recurring: true).select{|d| d.appointment? && (d.starts_at.wday == date.wday)}
-    one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select{|s| s.appointment?}
+    recurring = Event.where(weekly_recurring: true).select { |d| d.appointment? && (d.starts_at.wday == date.wday) }
+    one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select { |d| d.appointment? && (d.starts_at.wday == date.wday) }
     total = recurring + one_shot
     slots = []
-    if !total.empty?
       total.uniq.each do |d|
         current_slot = d.starts_at
         until current_slot == d.ends_at
           slots << current_slot.strftime('%l:%M').strip
-          current_slot = current_slot + 30.minutes
+          current_slot += 30.minutes
         end
       end
-    else
-      slots << 'No appointments found'
-    end
     slots
+  end
+
+  private
+
+  def duration_valid?
+    if ends_at < starts_at
+      temp = ends_at
+      self[:ends_at] = starts_at
+      self[:starts_at] = temp
+    end
+    true
   end
 end

@@ -18,18 +18,20 @@ class Event < ActiveRecord::Base
   end
 
   def self.openings_at(date)
-    events = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select{ |e| e.opening? }
+    recurring = Event.where(weekly_recurring: true).select { |d| d.opening? && (d.starts_at.wday == date.wday) }
+    one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select { |e| e.opening? }
+    total = recurring + one_shot
     slots = []
-    if !events.empty?
-      events.each do |d|
+    if !total.empty?
+      total.uniq.each do |d|
         current_slot = d.starts_at
         until current_slot == d.ends_at
-          slots << current_slot.strftime("%l:%M").strip
+          slots << current_slot.strftime('%l:%M').strip
           current_slot += 30.minutes
         end
       end
     else
-      slots << 'empty'
+      slots << 'No availabilities found'
     end
     slots
   end

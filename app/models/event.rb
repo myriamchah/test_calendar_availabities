@@ -1,4 +1,10 @@
 class Event < ActiveRecord::Base
+
+  before_create :duration_valid?
+
+  validates :kind, :starts_at, :ends_at, presence: true
+  validates :kind, inclusion: { in: %w(opening appointment) }
+
   def self.availabilities(date)
     arr = [{ date: date, slots: openings_at(date) - appointments_at(date) }]
     i = 0
@@ -23,7 +29,6 @@ class Event < ActiveRecord::Base
     one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select{ |d| d.opening? && (d.starts_at.wday == date.wday) }
     total = recurring + one_shot
     slots = []
-  #  if !total.empty?
       total.uniq.each do |d|
         current_slot = d.starts_at
         until current_slot == d.ends_at
@@ -31,9 +36,6 @@ class Event < ActiveRecord::Base
           current_slot += 30.minutes
         end
       end
-    # else
-    #   slots << 'No availabilities found'
-    # end
     slots
   end
 
@@ -43,7 +45,6 @@ class Event < ActiveRecord::Base
     one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select { |d| d.appointment? && (d.starts_at.wday == date.wday) }
     total = recurring + one_shot
     slots = []
-   # if !total.empty?
       total.uniq.each do |d|
         current_slot = d.starts_at
         until current_slot == d.ends_at
@@ -51,9 +52,17 @@ class Event < ActiveRecord::Base
           current_slot += 30.minutes
         end
       end
-    # else
-    #   slots << 'No appointments found'
-    # end
     slots
+  end
+
+  private
+
+  def duration_valid?
+    if ends_at < starts_at
+      temp = ends_at
+      self[:ends_at] = starts_at
+      self[:starts_at] = temp
+    end
+    true
   end
 end

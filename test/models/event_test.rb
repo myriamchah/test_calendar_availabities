@@ -1,7 +1,6 @@
 require 'test_helper'
 
 class EventTest < ActiveSupport::TestCase
-
   test "one simple test example" do
     Event.create kind: 'opening', starts_at: DateTime.parse("2014-08-04 09:30"), ends_at: DateTime.parse("2014-08-04 12:30"), weekly_recurring: true
     Event.create kind: 'appointment', starts_at: DateTime.parse("2014-08-11 10:30"), ends_at: DateTime.parse("2014-08-11 11:30")
@@ -37,5 +36,20 @@ class EventTest < ActiveSupport::TestCase
 
     assert_equal expected_result, Event.availabilities(DateTime.parse("2014-08-10"))
   end
-end
 
+  test "Should validate kind of an event" do
+    event = Event.create kind: 'none', starts_at: DateTime.parse("2014-08-04 09:30"), ends_at: DateTime.parse("2014-08-04 12:30"), weekly_recurring: true
+
+    assert_equal false, event.valid?
+  end
+
+  test "Should validate starts_at <= ends_at or switch them before creation of an event" do
+    event = Event.create kind: 'opening', starts_at: DateTime.parse("2014-08-10 12:30"), ends_at: DateTime.parse("2014-08-10 09:30")
+    assert_equal DateTime.parse("2014-08-10 09:30"), event.starts_at
+    assert_equal DateTime.parse("2014-08-10 12:30"), event.ends_at
+
+    event = Event.create kind: 'opening', starts_at: DateTime.parse("2014-08-10 09:30"), ends_at: DateTime.parse("2014-08-10 12:30")
+    assert_equal DateTime.parse("2014-08-10 09:30"), event.starts_at
+    assert_equal DateTime.parse("2014-08-10 12:30"), event.ends_at
+  end
+end

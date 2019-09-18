@@ -6,53 +6,34 @@ class Event < ActiveRecord::Base
   validates :kind, inclusion: { in: %w(opening appointment) }
 
   def self.availabilities(date)
-    arr = [{ date: date, slots: openings_at(date) - appointments_at(date) }]
+    arr = [{ date: date, slots: compute_slots_at(date) }]
     i = 0
     6.times do
       i += 1
-      arr << { date: date.next_day(i), slots: openings_at(date.next_day(i)) - appointments_at(date.next_day(i)) }
+      arr << { date: date.next_day(i), slots: compute_slots_at(date.next_day(i)) }
     end
     arr
   end
 
-  def opening?
-    kind == 'opening'
+  def self.compute_slots_at(date)
+    slots = list(sort_kinds('opening', date)) - list(sort_kinds('appointment', date))
   end
 
-  def appointment?
-    kind == 'appointment'
-  end
+  def self.list(slots)
+    listed_slots = []
 
-#I assume that all starts_at and ends_at occur on the same day
-  def self.openings_at(date)
-    recurring = Event.where(weekly_recurring: true).select { |d| d.opening? && (d.starts_at.wday == date.wday) }
-    one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select{ |d| d.opening? && (d.starts_at.wday == date.wday) }
-    total = recurring + one_shot
-    slots = []
-      total.uniq.each do |d|
-        current_slot = d.starts_at
-        until current_slot == d.ends_at
-          slots << current_slot.strftime('%l:%M').strip
+    slots.each do |slot|
+        current_slot = slot.starts_at
+        until current_slot == slot.ends_at
+          listed_slots << current_slot.strftime('%k:%M').strip
           current_slot += 30.minutes
         end
       end
-    slots
+    listed_slots
   end
 
-#I assume that all starts_at and ends_at occur on the same day
-  def self.appointments_at(date)
-    recurring = Event.where(weekly_recurring: true).select { |d| d.appointment? && (d.starts_at.wday == date.wday) }
-    one_shot = Event.where("events.starts_at >= ? AND  ? <= events.ends_at", date, date).select { |d| d.appointment? && (d.starts_at.wday == date.wday) }
-    total = recurring + one_shot
-    slots = []
-      total.uniq.each do |d|
-        current_slot = d.starts_at
-        until current_slot == d.ends_at
-          slots << current_slot.strftime('%l:%M').strip
-          current_slot += 30.minutes
-        end
-      end
-    slots
+  def self.sort_kinds(kind, date)
+    Event.where("(starts_at >= ? OR weekly_recurring = ?) AND kind = '#{kind}' ", date, true).select { |e| e.starts_at.wday == date.wday }
   end
 
   private

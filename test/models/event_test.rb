@@ -52,4 +52,13 @@ class EventTest < ActiveSupport::TestCase
     assert_equal DateTime.parse("2014-08-10 09:30"), event.starts_at
     assert_equal DateTime.parse("2014-08-10 12:30"), event.ends_at
   end
+
+    test "Should handle overlapping openings" do
+    event = Event.create kind: 'opening', starts_at: DateTime.parse("2014-08-04 10:30"), ends_at: DateTime.parse("2014-08-04 16:30"), weekly_recurring: true
+    event = Event.create kind: 'opening', starts_at: DateTime.parse("2014-08-11 09:30"), ends_at: DateTime.parse("2014-08-11 12:30")
+
+    availabilities = Event.availabilities DateTime.parse("2014-08-11")
+    assert_equal ["9:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00"], availabilities[0][:slots]
+    assert_equal 7, availabilities.length
+  end
 end

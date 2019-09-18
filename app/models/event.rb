@@ -25,11 +25,11 @@ class Event < ActiveRecord::Base
     slots.each do |slot|
         current_slot = slot.starts_at
         until current_slot == slot.ends_at
-          listed_slots << current_slot.strftime('%k:%M').strip
+          listed_slots << current_slot.strftime('%k:%M')
           current_slot += 30.minutes
         end
       end
-    listed_slots
+    listed_slots.uniq.sort.map {|s| s.strip}
   end
 
   def self.sort_kinds(kind, date)
